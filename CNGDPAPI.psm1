@@ -2,31 +2,37 @@ Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
 
-public class CngDpapiHelper
+public class DpapiNgHelper
 {
-[DllImport("ncrypt.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-public static extern int NCryptProtectSecret(
-    IntPtr hDescriptor,
-    uint dwFlags,
-    string pwszProtectionDescriptor,
-    IntPtr pMemPara,
-    byte[] pbData,
-    int cbData,
-    out IntPtr ppbProtectedBlob,
-    out int pcbProtectedBlob,
-    out int pcbResult);
+    [DllImport("ncrypt.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern int NCryptCreateProtectionDescriptor(
+        string pwszDescriptorString,
+        uint dwFlags,
+        out IntPtr phDescriptor);
+
+    [DllImport("ncrypt.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern int NCryptProtectSecret(
+        IntPtr hDescriptor,
+        uint dwFlags,
+        byte[] pbData,
+        int cbData,
+        IntPtr pMemPara,
+        IntPtr hWnd,
+        out IntPtr ppbProtectedBlob,
+        out int pcbProtectedBlob);
 
     [DllImport("ncrypt.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     public static extern int NCryptUnprotectSecret(
         IntPtr hDescriptor,
         uint dwFlags,
-        string pwszProtectionDescriptor,
-        IntPtr pMemPara,
         byte[] pbProtectedBlob,
         int cbProtectedBlob,
+        IntPtr pMemPara,
         out IntPtr ppbData,
-        out int pcbData,
-        out int pcbResult);
+        out int pcbData);
+
+    [DllImport("ncrypt.dll")]
+    public static extern int NCryptCloseProtectionDescriptor(IntPtr hDescriptor);
 
     [DllImport("ncrypt.dll")]
     public static extern int NCryptFreeBuffer(IntPtr pvBuffer);
@@ -38,58 +44,77 @@ function Protect-CngDpapiString {
     [OutputType([string])]
     param(
         [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
-        [string]$String,
+        [string]$String="TEST",
         
         [Parameter(Mandatory=$true)]
-        [string]$Principal
+        [string]$Principal="Administratoren",
+        
+        [ValidateSet('CurrentUser','LocalMachine','SID','SSDL')]
+        [string]$DescriptorType = 'SID'
     )
 
     process {
+        $hDescriptor = [IntPtr]::Zero
+        $ppbProtectedBlob = [IntPtr]::Zero
+        $pcbProtectedBlob = [IntPtr]::Zero
+        
         try {
-            # SID-Resolution
-            $account = New-Object System.Security.Principal.NTAccount($Principal)
-            $sid = $account.Translate([System.Security.Principal.SecurityIdentifier]).Value
-            $protectionDescriptor = "SID=$sid"
-            Write-Verbose "Using protection descriptor: $protectionDescriptor"
-
-            $data = [System.Text.Encoding]::Unicode.GetBytes($String)
-            if ($data.Length -eq 0) {
-                throw "Input data cannot be empty."
+            # Protection Descriptor erstellen
+            $descriptorString = switch ($DescriptorType) {
+                'CurrentUser' { 'LOCAL=user' }
+                'LocalMachine' { 'LOCAL=machine' }
+                'SID' {
+                    $account = New-Object System.Security.Principal.NTAccount($Principal)
+                    $sid = $account.Translate([System.Security.Principal.SecurityIdentifier])
+                    "SID=$($sid.Value)"
+                }
+                'SSDL' { $Principal }
             }
 
-            $hDescriptor = [IntPtr]::Zero
-            $dwFlags = 0
-            $pMemPara = [IntPtr]::Zero
-            $cbData = $data.Length
+            Write-Host "Using descriptor: $descriptorString"
+            
+            $result = [DpapiNgHelper]::NCryptCreateProtectionDescriptor(
+                $descriptorString,
+                0,
+                [ref]$hDescriptor
+            )
+            $hDescriptor
+            if ($result -ne 0) {
+                throw "NCryptCreateProtectionDescriptor failed (0x$($result.ToString('X8')))"
+            }
 
-            $ppbProtectedBlob = [IntPtr]::Zero
-            $pcbProtectedBlob = 0
-            $pcbResult = 0
-
-            # Call NCryptProtectSecret
-            $result = [CngDpapiHelper]::NCryptProtectSecret(
+            # Daten vorbereiten
+            $data = [Text.Encoding]::UTF8.GetBytes($String)
+            
+            # Verschlüsseln
+            $result = [DpapiNgHelper]::NCryptProtectSecret(
                 $hDescriptor,
-                $dwFlags,
-                $protectionDescriptor,
-                $pMemPara,
+                0,
                 $data,
-                $cbData,
+                $data.Length,
+                [IntPtr]::Zero,
+                [IntPtr]::Zero,
                 [ref]$ppbProtectedBlob,
-                [ref]$pcbProtectedBlob,
-                [ref]$pcbResult
+                [ref]$pcbProtectedBlob
             )
 
             if ($result -ne 0) {
-                throw "NCryptProtectSecret failed (HRESULT 0x$($result.ToString('X8')))"
+                throw "NCryptProtectSecret failed (0x$($result.ToString('X8')))"
             }
 
+            # Ergebnis auslesen
             $encryptedData = New-Object byte[] $pcbProtectedBlob
-            [Runtime.InteropServices.Marshal]::Copy($ppbProtectedBlob, $encryptedData, 0, $pcbProtectedBlob)
-            [CngDpapiHelper]::NCryptFreeBuffer($ppbProtectedBlob) | Out-Null
-
+            Marshal.Copy($ppbProtectedBlob, $encryptedData, 0, $pcbProtectedBlob)
+            
             [Convert]::ToBase64String($encryptedData)
-        } catch {
-            throw "Encryption failed: $_"
+        }
+        finally {
+            if ($hDescriptor -ne [IntPtr]::Zero) {
+                [DpapiNgHelper]::NCryptCloseProtectionDescriptor($hDescriptor)
+            }
+            if ($ppbProtectedBlob -ne [IntPtr]::Zero) {
+                [DpapiNgHelper]::NCryptFreeBuffer($ppbProtectedBlob)
+            }
         }
     }
 }
@@ -103,39 +128,34 @@ function Unprotect-CngDpapiString {
     )
 
     process {
+        $ppbData = [IntPtr]::Zero
+        
         try {
             $encryptedData = [Convert]::FromBase64String($EncryptedString)
-            $hDescriptor = [IntPtr]::Zero
-            $dwFlags = 0
-            $pMemPara = [IntPtr]::Zero
-            $cbProtectedBlob = $encryptedData.Length
-            $ppbData = [IntPtr]::Zero
-            $pcbData = 0
-            $pcbResult = 0
-
-            $result = [CngDpapiHelper]::NCryptUnprotectSecret(
-                $hDescriptor,
-                $dwFlags,
-                $null,
-                $pMemPara,
+            
+            $result = [DpapiNgHelper]::NCryptUnprotectSecret(
+                [IntPtr]::Zero,
+                0,
                 $encryptedData,
-                $cbProtectedBlob,
+                $encryptedData.Length,
+                [IntPtr]::Zero,
                 [ref]$ppbData,
-                [ref]$pcbData,
-                [ref]$pcbResult
+                [ref]$pcbData
             )
 
             if ($result -ne 0) {
-                throw "NCryptUnprotectSecret failed (HRESULT 0x$($result.ToString('X8')))"
+                throw "NCryptUnprotectSecret failed (0x$($result.ToString('X8')))"
             }
 
             $decryptedData = New-Object byte[] $pcbData
-            [Runtime.InteropServices.Marshal]::Copy($ppbData, $decryptedData, 0, $pcbData)
-            [CngDpapiHelper]::NCryptFreeBuffer($ppbData) | Out-Null
-
-            [System.Text.Encoding]::Unicode.GetString($decryptedData).TrimEnd([char]0)
-        } catch {
-            throw "Decryption failed: $_"
+            Marshal.Copy($ppbData, $decryptedData, 0, $pcbData)
+            
+            [Text.Encoding]::UTF8.GetString($decryptedData)
+        }
+        finally {
+            if ($ppbData -ne [IntPtr]::Zero) {
+                [DpapiNgHelper]::NCryptFreeBuffer($ppbData)
+            }
         }
     }
 }
