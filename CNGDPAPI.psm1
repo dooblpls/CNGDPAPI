@@ -28,6 +28,7 @@ public class DpapiNgHelper
         byte[] pbProtectedBlob,
         int cbProtectedBlob,
         IntPtr pMemPara,
+        IntPtr hWnd,
         out IntPtr ppbData,
         out int pcbData);
 
@@ -104,7 +105,7 @@ function Protect-CngDpapiString {
 
             # Ergebnis auslesen
             $encryptedData = New-Object byte[] $pcbProtectedBlob
-            Marshal.Copy($ppbProtectedBlob, $encryptedData, 0, $pcbProtectedBlob)
+            [System.Runtime.InteropServices.Marshal]::Copy($ppbProtectedBlob, $encryptedData, 0, $pcbProtectedBlob)
             
             [Convert]::ToBase64String($encryptedData)
         }
@@ -129,6 +130,7 @@ function Unprotect-CngDpapiString {
 
     process {
         $ppbData = [IntPtr]::Zero
+        $pcbData = [IntPtr]::Zero
         
         try {
             $encryptedData = [Convert]::FromBase64String($EncryptedString)
@@ -139,6 +141,7 @@ function Unprotect-CngDpapiString {
                 $encryptedData,
                 $encryptedData.Length,
                 [IntPtr]::Zero,
+                [IntPtr]::Zero,
                 [ref]$ppbData,
                 [ref]$pcbData
             )
@@ -148,13 +151,13 @@ function Unprotect-CngDpapiString {
             }
 
             $decryptedData = New-Object byte[] $pcbData
-            Marshal.Copy($ppbData, $decryptedData, 0, $pcbData)
+            [System.Runtime.InteropServices.Marshal]::Copy($ppbData, $decryptedData, 0, $pcbData) | Out-Null
             
-            [Text.Encoding]::UTF8.GetString($decryptedData)
+            return [Text.Encoding]::UTF8.GetString($decryptedData)
         }
         finally {
             if ($ppbData -ne [IntPtr]::Zero) {
-                [DpapiNgHelper]::NCryptFreeBuffer($ppbData)
+                [DpapiNgHelper]::NCryptFreeBuffer($ppbData) | Out-Null
             }
         }
     }
