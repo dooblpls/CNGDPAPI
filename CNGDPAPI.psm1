@@ -79,7 +79,7 @@ function Protect-CngDpapiString {
                 0,
                 [ref]$hDescriptor
             )
-            $hDescriptor
+
             if ($result -ne 0) {
                 throw "NCryptCreateProtectionDescriptor failed (0x$($result.ToString('X8')))"
             }
@@ -105,16 +105,16 @@ function Protect-CngDpapiString {
 
             # Ergebnis auslesen
             $encryptedData = New-Object byte[] $pcbProtectedBlob
-            [System.Runtime.InteropServices.Marshal]::Copy($ppbProtectedBlob, $encryptedData, 0, $pcbProtectedBlob)
+            [System.Runtime.InteropServices.Marshal]::Copy($ppbProtectedBlob, $encryptedData, 0, $pcbProtectedBlob) | Out-Null
             
-            [Convert]::ToBase64String($encryptedData)
+            return [Convert]::ToBase64String($encryptedData)
         }
         finally {
             if ($hDescriptor -ne [IntPtr]::Zero) {
-                [DpapiNgHelper]::NCryptCloseProtectionDescriptor($hDescriptor)
+                [DpapiNgHelper]::NCryptCloseProtectionDescriptor($hDescriptor) | Out-Null
             }
             if ($ppbProtectedBlob -ne [IntPtr]::Zero) {
-                [DpapiNgHelper]::NCryptFreeBuffer($ppbProtectedBlob)
+                [DpapiNgHelper]::NCryptFreeBuffer($ppbProtectedBlob) | Out-Null
             }
         }
     }
