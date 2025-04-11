@@ -95,7 +95,7 @@ Write-Output "Decrypted secret: $decrypted"
 ## ❓ FAQ
 
 **Q:** *Can I encrypt for multiple principals?*  
-**A:** Not directly. Create separate encrypted strings or use an AD group as the principal.
+**A:** Not directly in the current version. However, future versions might support this. The Cryptography API: Next Generation (CNG) Protection Descriptors fundamentally allow combining SIDs using logical operators like AND and OR, which could enable encryption for multiple principals simultaneously.
 
 **Q:** *What if the principal is deleted?*  
 **A:** Decryption becomes impossible. Always encrypt under groups for long-term secrets.
