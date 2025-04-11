@@ -51,7 +51,6 @@ Write-Output "Decrypted secret: $decrypted"
 ```
 *Works seamlessly if:*
 - You belong to the specified AD group
-- Your machine has access to the domain-encrypted key material
 
 ---
 
