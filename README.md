@@ -114,4 +114,3 @@ MIT License – Go wild, but credit `dooblpls`.
 
 **🛡️ Your Secrets Deserve Better. Stop Compromising.**  
 Crafted with rage against plaintext by [dooblpls](https://github.com/dooblpls).  
-```
