@@ -88,7 +88,7 @@ Write-Output "Decrypted secret: $decrypted"
 ## 🔥 Security Best Practices
 
 - **🚫 No Plaintext Logs**: Avoid logging raw secrets. Encrypt *first*.
-- **👮 Principal Least Privilege**: Restrict encryption/decryption to specific security groups.
+- **👮 Principal Least Privilege**: Restrict decryption to specific security groups.
 
 
 ---
