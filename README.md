@@ -7,7 +7,7 @@
 
 ## 🚀 Why Choose CNGDPAPI?
 
-Tired of managing passwords, certificates, or complex key exchanges? **This module revolutionizes secret handling** by integrating directly with Windows' native CNG DPAPI (Cryptography Next Generation Data Protection API). Encrypt strings in seconds, share them securely, and let authorized users decrypt them **using their existing Windows credentials**. No secrets left unsecured. No extra steps. Just *pure PowerShell magic*.
+Tired of managing passwords, certificates, or complex key exchanges? **This module revolutionizes secret handling** by integrating directly with Windows' native CNG DPAPI (Cryptography Next Generation Data Protection API). Encrypt strings in seconds, share them securely, and let authorized users decrypt them **using their existing Windows Session**. No secrets left unsecured. No extra steps. Just *pure PowerShell magic*.
 
 ---
 
