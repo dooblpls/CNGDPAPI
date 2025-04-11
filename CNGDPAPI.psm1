@@ -48,10 +48,8 @@ function Protect-CngDpapiString {
         [string]$String="TEST",
         
         [Parameter(Mandatory=$true)]
-        [string]$Principal="Administratoren",
-        
-        [ValidateSet('CurrentUser','LocalMachine','SID','SSDL')]
-        [string]$DescriptorType = 'SID'
+        [string]$Principal="Administratoren"        
+
     )
 
     process {
@@ -61,16 +59,9 @@ function Protect-CngDpapiString {
         
         try {
             # Protection Descriptor erstellen
-            $descriptorString = switch ($DescriptorType) {
-                'CurrentUser' { 'LOCAL=user' }
-                'LocalMachine' { 'LOCAL=machine' }
-                'SID' {
-                    $account = New-Object System.Security.Principal.NTAccount($Principal)
-                    $sid = $account.Translate([System.Security.Principal.SecurityIdentifier])
-                    "SID=$($sid.Value)"
-                }
-                'SSDL' { $Principal }
-            }
+            $account = New-Object System.Security.Principal.NTAccount($Principal)
+            $sid = $account.Translate([System.Security.Principal.SecurityIdentifier])
+            $descriptorString="SID=$($sid.Value)"
 
             Write-Host "Using descriptor: $descriptorString"
             
@@ -84,10 +75,8 @@ function Protect-CngDpapiString {
                 throw "NCryptCreateProtectionDescriptor failed (0x$($result.ToString('X8')))"
             }
 
-            # Daten vorbereiten
             $data = [Text.Encoding]::UTF8.GetBytes($String)
             
-            # Verschlüsseln
             $result = [DpapiNgHelper]::NCryptProtectSecret(
                 $hDescriptor,
                 0,
@@ -103,7 +92,6 @@ function Protect-CngDpapiString {
                 throw "NCryptProtectSecret failed (0x$($result.ToString('X8')))"
             }
 
-            # Ergebnis auslesen
             $encryptedData = New-Object byte[] $pcbProtectedBlob
             [System.Runtime.InteropServices.Marshal]::Copy($ppbProtectedBlob, $encryptedData, 0, $pcbProtectedBlob) | Out-Null
             
