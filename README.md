@@ -16,6 +16,7 @@ Tired of managing passwords, certificates, or complex key exchanges? **This modu
 - 🔥 **Zero Configuration** – Works out-of-the-box on Windows 10/11 and Windows Server 2016+
 - ⚡ **Lightning-Fast** – Encrypt/decrypt strings in milliseconds
 - 🔗 **Principal-Based Access** – Secrets decryptable **only** by the intended Windows user/group
+- 🧪 **Custom Descriptor Rules** – Use advanced CNG descriptor strings like `LOCAL=user` or `SID=S-1-5-...`
 - 🔄 **Cross-Machine Support** – Secure secrets for use on multiple machines
 - 📦 **PS Module Simplicity** – Just `Install-Module` and you’re ready
 - 🔐 **Military-Grade Security** – Backed by Microsoft’s CNG DPAPI (AES-256, RSA-2048)
@@ -36,7 +37,14 @@ Install-Module -Name CNGDPAPI -Scope CurrentUser -Force
 #### **Encrypt for an AD Group** (Team Secrets)
 ```powershell
 # Target a security group (requires admin privileges)
-$encrypted = Protect-CngDpapiString -String "SECRET STRING" -Principal "DOMAIN\ADGroup"
+$encrypted = "Secret" | Protect-CngDpapiString -Principal "DOMAIN\ADGroup"
+Write-Output "Share this safely: $encrypted"
+```
+
+#### **Encrypt with Custom Descriptor Rule**
+```powershell
+# Use raw CNG descriptor logic (e.g. LOCAL=user for local user session)
+$encrypted = "Secret" | Protect-CngDpapiString -Descriptor "LOCAL=user"
 Write-Output "Share this safely: $encrypted"
 ```
 
@@ -51,15 +59,16 @@ Write-Output "Decrypted secret: $decrypted"
 ```
 *Works seamlessly if:*
 - You belong to the specified AD group
+- Or your session matches the custom descriptor rule
 
 ---
 
 ## 🧠 How It Works
 
 ### Behind the Scenes
-- **CNG DPAPI** encrypts data using a **specific principal’s identity**.
+- **CNG DPAPI** encrypts data using a **specific principal’s identity** or custom rule.
 - Encrypted strings are **portable** – share via config files, pipelines, or even emails.
-- Decryption requires **the exact Windows principal context** used during encryption. No principal? No decryption. Period.
+- Decryption requires **the exact Windows principal context** used during encryption. No match? No decryption.
 
 ---
 
@@ -79,7 +88,12 @@ Write-Output "Decrypted secret: $decrypted"
    }
    ```
 
-3. **Rotate secrets without re-deploying**  
+3. **Encrypt locally without needing AD**  
+   ```powershell
+   Protect-CngDpapiString -String "dev secret" -Descriptor "LOCAL=user"
+   ```
+
+4. **Rotate secrets without re-deploying**  
    Just re-encrypt and redistribute!
 
 ---
@@ -87,15 +101,17 @@ Write-Output "Decrypted secret: $decrypted"
 ## 🔥 Security Best Practices
 
 - **🚫 No Plaintext Logs**: Avoid logging raw secrets. Encrypt *first*.
-- **👮 Principal Least Privilege**: Restrict decryption to specific security groups.
-
+- **👮 Principal Least Privilege**: Restrict decryption to specific security groups or descriptors.
 
 ---
 
 ## ❓ FAQ
 
 **Q:** *Can I encrypt for multiple principals?*  
-**A:** Not directly in the current version. However, future versions might support this. The Cryptography API: Next Generation (CNG) Protection Descriptors fundamentally allow combining SIDs using logical operators like AND and OR, which could enable encryption for multiple principals simultaneously.
+**A:** Yes, using custom descriptors like `"SID=S-1-5-21-... OR SID=S-1-5-32-544"`. These are passed directly via `-Descriptor`.
+
+**Q:** *What’s the difference between `-Principal` and `-Descriptor`?*  
+**A:** `-Principal` is simpler and auto-converted to a SID. `-Descriptor` gives you full control with logical expressions and policy rules (e.g. `LOCAL=user`, `WEBCREDENTIALS=...`, `AND`, `OR`). [Microsoft - Cryptography API: Next Generation - Protection Descriptors](https://learn.microsoft.com/en-us/windows/win32/seccng/protection-descriptors)
 
 **Q:** *What if the principal is deleted?*  
 **A:** Decryption becomes impossible. Always encrypt under groups for long-term secrets.
