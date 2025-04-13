@@ -1,4 +1,4 @@
-# 🔒 CNGDPAPI | Secure Secret Encryption for PowerShell [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/dooblpls/CNGDPAPI) [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
+# 🔒 CNGDPAPI | Secure Secret Encryption for PowerShell ![PowerShell Gallery Version](https://img.shields.io/powershellgallery/v/CNGDPAPI) [![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)](https://github.com/dooblpls/CNGDPAPI) [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 > **Your Secrets, Fort Knox Strong. No Passwords. Just PowerShell.**  
 > *Leverage Windows CNG DPAPI to encrypt/decrypt secrets instantly. Built for teams, designed for security.*
