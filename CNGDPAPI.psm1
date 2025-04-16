@@ -76,27 +76,18 @@ function Protect-CngDpapiString {
     .NOTES
         Exactly one of -Principal or -Descriptor must be provided.
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName="Principal")]
     [OutputType([string])]
     param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [string]$String,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $true, ParameterSetName="Principal")]
         [string]$Principal,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $true, ParameterSetName="Descriptor")]
         [string]$Descriptor
     )
-
-    begin {
-        if ([string]::IsNullOrEmpty($Principal) -and [string]::IsNullOrEmpty($Descriptor)) {
-            throw "You must provide either -Principal or -Descriptor."
-        }
-        if (-not [string]::IsNullOrEmpty($Principal) -and -not [string]::IsNullOrEmpty($Descriptor)) {
-            throw "You may only provide one of -Principal or -Descriptor, not both."
-        }
-    }
 
     process {
         $hDescriptor = [IntPtr]::Zero

@@ -3,7 +3,7 @@
     RootModule        = 'CNGDPAPI.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '1.0.1'
+    ModuleVersion     = '1.0.2'
 
     # ID used to uniquely identify this module
     GUID              = 'd0a9160f-6dd2-4c72-9d4b-2ebd4e4e4d7a'
